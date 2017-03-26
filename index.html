@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.2/react.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.2/JSXTransformer.js"></script>
+      <script src="https://npmcdn.com/jquery@3.1.0/dist/jquery.min.js"></script>
+      <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+      <script src="https://www.google.com/jsapi"></script>
+      <script type="text/javascript">
+         google.load('visualization', '1', {
+         'packages': ['corechart']
+         });
+         google.setOnLoadCallback(init);
+         var socket = io();
+         var Chart = React.createClass({
+         displayName: "Chart",
+         getInitialState: function() {
+         return {
+           data: [],
+           stocks:[]
+          };
+         },
+         render: function() {
+           return React.DOM.div({
+             id: this.props.graphName,
+             style: {
+               width: '800px',
+               height: '500px'
+             }
+          });
+         },
+         componentDidMount: function() {
+           this.getData();
+         },
+         update: function(){
+           this.setState({
+             data : this.getData()
+           });
+           this.draw();
+         },
+         draw: function(stocks) {
+         var stocks=this.state.stocks;
+         var options = {
+           chart: {},
+           width: 900,
+           height: 500,
+           axes: {
+             x: {
+               0: {side: 'top'}
+             }
+           }
+         };
+         var data = new google.visualization.DataTable();
+
+         data.addColumn('string', 'Data');
+         var intestazioni = stocks[0];
+         for(var i=0;i<intestazioni.length;i++){
+           data.addColumn('number', intestazioni[i].id_stock);
+         }
+         var somma = 0;
+         somma = stocks[1].length;
+         var rows= [];
+         for(var i=0;i<somma;i++){
+           var row = [stocks[1][i].date];
+           rows.push(row);
+         }
+
+         for(var i=1;i<stocks.length;i++){
+           for(var y=0;y<stocks[i].length;y++){
+             rows[y][i]=stocks[i][y].close;
+           }
+         }
+         /*data.addRows([
+           [1,  37.8, 80.8],
+           [2,  30.9, 69.5],
+           [3,  25.4,   57],
+           [4,  11.7, 18.8],
+           [5,  11.9, 17.6],
+           [6,   8.8, 13.6],
+           [7,   7.6, 12.3],
+           [8,  12.3, 29.2],
+           [9,  16.9, 42.9]
+         ]);
+         */
+         data.addRows(rows);
+          var element = document.getElementById(this.props.graphName);
+          var chart = new google.visualization.LineChart(element);
+          chart.draw(data, options);
+         },
+
+         getData: function() {
+           $.ajax({
+             url: "/infostocks",
+             dataType: 'json',
+             cache: false,
+             success: function(data) {
+               this.setState({stocks:data});
+               this.draw();
+             }.bind(this),
+             error: function(xhr, status, err) {
+                console.error(status, err.toString());
+              }.bind(this)
+             });
+           }
+         });  // end of react class
+
+         function init() {
+           var Graph= React.createElement(Chart, {
+               graphName: "line"
+            });
+           var graph = React.render(Graph,  document.getElementById('graph'));
+           socket.on('update label', function (data) {
+             graph.update(data);
+           });
+           socket.on('remove label', function (data) {
+             graph.update(data);
+           });
+         }
+      </script>
+
+      <script type="text/jsx">
+        //  var socket = io();
+
+         var Input = React.createClass({
+           _notifyServer: function(event){
+               if(event.key =="Enter"){
+                 socket.emit('client event', { value: event.target.value });
+               }
+           },
+
+           render: function(){
+             return (
+               <div className="update-label">
+                 <input type="text" placeholder="Enter new stock" onKeyPress={this._notifyServer}/>
+               </div>
+             );
+           }
+         });
+
+         var List = React.createClass({
+           _onUpdateLabel: function(data) {
+              var comment = this.state.serverValue;
+              var newComments = comment.concat([data]);
+              this.setState({serverValue: newComments});
+           },
+           _notifyServer2: function(){
+             socket.emit('client event2', { value: arguments[0] });
+           },
+           _onRemoveLabel:function(data){
+             var comment = this.state.serverValue;
+             var comments = [];
+             for(var i=0;i<comment.length;i++){
+               comments.push(comment[i].id_stock);
+             }
+             var value = data.value;
+             var newarray = this.state.serverValue.filter(function( obj ) {
+               return obj.id_stock !== value;
+             });
+             console.log(newarray);
+             this.setState({serverValue: newarray});
+           },
+           getInitialState: function(){
+             return { serverValue: [] };
+           },
+          componentDidMount: function() {
+             $.ajax({
+               url: "/stocks",
+               dataType: 'json',
+               cache: false,
+               success: function(data) {
+                 this.setState({serverValue: data});
+               }.bind(this),
+               error: function(xhr, status, err) {
+                 console.error(this.props.url, status, err.toString());
+               }.bind(this)
+             });
+           },
+           render: function(){
+             console.log(this.state.serverValue)
+             var people = [];
+             for(var i = 0; i < this.state.serverValue.length; i++) {
+               people.push(<li>{this.state.serverValue[i].id_stock}</li>);
+               people.push(<button onClick={this._notifyServer2.bind(this,this.state.serverValue[i].id_stock)}>Delete</button>);
+             }
+             return (
+               <ul>
+                 {people}
+               </ul>
+             );
+           }
+         });
+         var input = React.render(<Input/>, document.getElementById('mount-point'));
+         var label = React.render(<List />, document.getElementById('label-mount-point'));
+         socket.on('update label', function (data) {
+           label._onUpdateLabel(data);
+         });
+         socket.on('remove label', function (data) {
+           label._onRemoveLabel(data);
+         });
+      </script>
+   </head>
+   <body>
+      <div id="mount-point"></div>
+      <div id="label-mount-point"></div>
+      <div id="graph"></div>
+</html>
