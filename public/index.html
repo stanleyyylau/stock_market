@@ -7,115 +7,135 @@
       <script src="/socket.io-1.4.5.js"></script>
       <script src="/jsapi.js"></script>
       <script type="text/javascript">
-         google.load('visualization', '1', {
-         'packages': ['corechart']
-         });
-         google.setOnLoadCallback(init);
-         var socket = io();
-         var Chart = React.createClass({
-         displayName: "Chart",
-         getInitialState: function() {
-         return {
-           data: [],
-           stocks:[]
-          };
-         },
-         render: function() {
-           return React.DOM.div({
-             id: this.props.graphName,
-             style: {
-               width: '800px',
-               height: '500px'
-             }
+          google.load('visualization', '1', {
+              'packages': ['corechart']
           });
-         },
-         componentDidMount: function() {
-           this.getData();
-         },
-         update: function(){
-           this.setState({
-             data : this.getData()
-           });
-           this.draw();
-         },
-         draw: function(stocks) {
-         var stocks=this.state.stocks;
-         var options = {
-           chart: {},
-           width: 900,
-           height: 500,
-           axes: {
-             x: {
-               0: {side: 'top'}
-             }
-           }
-         };
-         var data = new google.visualization.DataTable();
+          google.setOnLoadCallback(init);
 
-         data.addColumn('string', 'Data');
-         var intestazioni = stocks[0];
-         for(var i=0;i<intestazioni.length;i++){
-           data.addColumn('number', intestazioni[i].id_stock);
-         }
-         var somma = 0;
-         somma = stocks[1].length;
-         var rows= [];
-         for(var i=0;i<somma;i++){
-           var row = [stocks[1][i].date];
-           rows.push(row);
-         }
+          var socket = io();
 
-         for(var i=1;i<stocks.length;i++){
-           for(var y=0;y<stocks[i].length;y++){
-             rows[y][i]=stocks[i][y].close;
-           }
-         }
-         /*data.addRows([
-           [1,  37.8, 80.8],
-           [2,  30.9, 69.5],
-           [3,  25.4,   57],
-           [4,  11.7, 18.8],
-           [5,  11.9, 17.6],
-           [6,   8.8, 13.6],
-           [7,   7.6, 12.3],
-           [8,  12.3, 29.2],
-           [9,  16.9, 42.9]
-         ]);
-         */
-         data.addRows(rows);
-          var element = document.getElementById(this.props.graphName);
-          var chart = new google.visualization.LineChart(element);
-          chart.draw(data, options);
-         },
+          // React Chart Component
+          var Chart = React.createClass({
+              displayName: "Chart",
+              getInitialState: function() {
+                  return {
+                      data: [],
+                      stocks: []
+                  };
+              },
+              render: function() {
+                  return React.DOM.div({
+                      id: this.props.graphName,
+                      style: {
+                          width: '800px',
+                          height: '500px'
+                      }
+                  });
+              },
+              componentDidMount: function() {
+                  this.getData();
+              },
+              update: function() {
+                  this.setState({
+                      data: this.getData()
+                  });
+                  this.draw();
+              },
+              draw: function(stocks) {
+                  var stocks = this.state.stocks;
+                  var options = {
+                      chart: {},
+                      width: 900,
+                      height: 500,
+                      axes: {
+                          x: {
+                              0: {
+                                  side: 'top'
+                              }
+                          }
+                      }
+                  };
+                  var data = new google.visualization.DataTable();
 
-         getData: function() {
-           $.ajax({
-             url: "/infostocks",
-             dataType: 'json',
-             cache: false,
-             success: function(data) {
-               this.setState({stocks:data});
-               this.draw();
-             }.bind(this),
-             error: function(xhr, status, err) {
-                console.error(status, err.toString());
-              }.bind(this)
-             });
-           }
-         });  // end of react class
+                  data.addColumn('string', 'Data');
+                  var headers = Object.keys(stocks);
+                  console.log('all headers')
+                  console.log(headers)
+                  headers.forEach(function(element){
+                    data.addColumn('number', element);
+                  })
 
-         function init() {
-           var Graph= React.createElement(Chart, {
-               graphName: "line"
-            });
-           var graph = React.render(Graph,  document.getElementById('graph'));
-           socket.on('update label', function (data) {
-             graph.update(data);
-           });
-           socket.on('remove label', function (data) {
-             graph.update(data);
-           });
-         }
+                  var rows = [];
+                  var firstStockData = stocks[headers[0]]
+                  for (var i = 0; i < firstStockData.length; i++) {
+                      var row = [firstStockData[i].date.substring(0, 10)];
+                      rows.push(row);
+                  }
+
+                  // rows is now full of date
+
+                  headers.forEach(function(element, index){
+                    var currentStock = stocks[element]
+                    for (var y = 0; y < currentStock.length; y++) {
+                        rows[y][index+1] = currentStock[y].close;
+                    }
+                  })
+
+                  /*
+                  data.addRows([
+                    [1,  37.8, 80.8, 41.8],
+                    [2,  30.9, 69.5, 32.4],
+                    [3,  25.4,   57, 25.7],
+                    [4,  11.7, 18.8, 10.5],
+                    [5,  11.9, 17.6, 10.4],
+                    [6,   8.8, 13.6,  7.7],
+                    [7,   7.6, 12.3,  9.6],
+                    [8,  12.3, 29.2, 10.6],
+                    [9,  16.9, 42.9, 14.8],
+                    [10, 12.8, 30.9, 11.6],
+                    [11,  5.3,  7.9,  4.7],
+                    [12,  6.6,  8.4,  5.2],
+                    [13,  4.8,  6.3,  3.6],
+                    [14,  4.2,  6.2,  3.4]
+                  ]);
+                  */
+                  data.addRows(rows);
+                  var element = document.getElementById(this.props.graphName);
+                  var chart = new google.visualization.LineChart(element);
+                  chart.draw(data, options);
+              },
+              // Automatically draw when getData is success
+              getData: function() {
+                  $.ajax({
+                      url: "/infostocks",
+                      dataType: 'json',
+                      cache: false,
+                      success: function(data) {
+                          this.setState({
+                              stocks: data
+                          });
+                          this.draw();
+                      }.bind(this),
+                      error: function(xhr, status, err) {
+                          console.error(status, err.toString());
+                      }.bind(this)
+                  });
+              }
+          }); // end of react class
+
+          // Below function will be called when google charts api loaded
+          function init() {
+              var Graph = React.createElement(Chart, {
+                  graphName: "line"
+              });
+              var graph = React.render(Graph, document.getElementById('graph'));
+              socket.on('update label', function(data) {
+                  graph.update(data);
+              });
+              socket.on('remove label', function(data) {
+                  graph.update(data);
+              });
+          }
       </script>
 
       <script type="text/jsx">
