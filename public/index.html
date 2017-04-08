@@ -12,6 +12,7 @@
           });
           google.setOnLoadCallback(init);
 
+          // Socket IO defaults to trying to connect to the host that serves the page
           var socket = io();
 
           // React Chart Component
@@ -130,10 +131,10 @@
               });
               var graph = React.render(Graph, document.getElementById('graph'));
               socket.on('update label', function(data) {
-                  graph.update(data);
+                  graph.update();
               });
               socket.on('remove label', function(data) {
-                  graph.update(data);
+                  graph.update();
               });
           }
       </script>
@@ -159,8 +160,10 @@
 
          var List = React.createClass({
            _onUpdateLabel: function(data) {
+              console.log('data is...')
+              console.log(data)
               var comment = this.state.serverValue;
-              var newComments = comment.concat([data]);
+              var newComments = comment.concat([{id_stock: data.value}]);
               this.setState({serverValue: newComments});
            },
            _notifyServer2: function(){
@@ -209,6 +212,7 @@
              );
            }
          });
+         
          var input = React.render(<Input/>, document.getElementById('mount-point'));
          var label = React.render(<List />, document.getElementById('label-mount-point'));
          socket.on('update label', function (data) {
