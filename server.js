@@ -5,9 +5,10 @@ var moment = require('moment');
 var yahooFinance = require('yahoo-finance');
 var Stock = require('./stock');
 var port = process.env.PORT || 8080;
+var dbUrl = process.env.MONGODB_URI || 'mongodb://localhost:27017/stock_market'
 
 mongoose.Promise = global.Promise;
-mongoose.connect("mongodb://localhost:27017/stock_market");
+mongoose.connect(dbUrl);
 
 app.use(express.static('public'))
 var server = require('http').Server(app);
